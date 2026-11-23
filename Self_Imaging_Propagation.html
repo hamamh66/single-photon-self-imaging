@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propagation and self-imaging</title>
+<style>
+*{box-sizing:border-box}body{font:16px/1.55 system-ui;background:#091523;color:#e7eff8;max-width:1080px;margin:auto;padding:22px}h1{font-size:clamp(1.9rem,5vw,3rem);margin:0}section{background:#112336;border:1px solid #304c66;border-radius:16px;padding:16px;margin:16px 0}canvas{display:block;width:100%;height:390px}button{background:#203e59;color:white;border:1px solid #63829c;border-radius:7px;font:inherit;padding:.4em .7em;margin:4px;cursor:pointer}button:first-child{background:#087179}label{display:block;margin:8px 0}input{width:100%;accent-color:#61dbd5}output{font-variant-numeric:tabular-nums;color:#9de6e4}a{color:#9de6e4}p{margin:.55em 0}.muted{color:#b9cada}
+</style>
+<h1>Propagation and self-imaging</h1>
+<p class="muted">Follow an ideal single-photon mode from the reference plane to the two image planes.</p>
+<section>
+<canvas id="view" aria-label="Propagation map and detector profiles at the selected plane"></canvas>
+<div><button id="play">Play</button><button data-plane="0">Reference</button><button data-plane="intensity">Intensity recurrence</button><button data-plane="field">Complex-mode recurrence</button></div>
+<label for="distance">Propagation distance <input id="distance" type="range" min="0" max="1.13" step=".0001" value="0"></label>
+<p><output id="stats"></output></p>
+</section>
+<section><h2>How to read the animation</h2>
+<p>The dashed line moves through the propagation map. The profile below compares the selected plane with the reference. The phase trace shows the local phase change after removing the common carrier phase.</p>
+<p>At <strong>8.19 λ</strong>, the click density matches everywhere, while the best squared mode overlap over all lateral shifts is <strong>0.75</strong>. At <strong>12.28 λ</strong>, the complex mode itself returns up to a global phase.</p>
+<p class="muted">Model: three prescribed TE plane-wave orders with modal populations (¼, ½, ¼), period 2.53 λ and reference plane z = L/6. Propagation uses exact longitudinal dispersion. Click density is normalized to unit mean over a lateral period. This is a free-propagation illustration of the analytical benchmark. The numerical two-slit grating is a separate model. Playback sweeps the observation plane in distance.</p>
+<a href="https://doi.org/10.1364/JOSA.57.000772">Montgomery’s complex-field criterion</a> · <a href="https://doi.org/10.1364/JOSA.71.001529">Montgomery’s intensity self-imaging analysis</a>
+</section>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), canvas=$('view'), ctx=canvas.getContext('2d');
+const d=2.53,L=1/(1-Math.sqrt(1-1/d**2)), limit=1.13, A=1/Math.sqrt(2);
+function mode(x,t){
+  const b=Math.cos(2*Math.PI*x), a=2*Math.PI*(t+1/6);
+  return [A+b*Math.cos(a),-b*Math.sin(a)];
+}
+function intensity(x,t){const [r,i]=mode(x,t);return r*r+i*i;}
+function phaseChange(x,t){
+  const [r,i]=mode(x,t),[a,b]=mode(x,0);
+  return Math.atan2(i*a-r*b,r*a+i*b);
+}
+const map=document.createElement('canvas');map.width=480;map.height=128;
+const mc=map.getContext('2d'), pixels=mc.createImageData(map.width,map.height);
+for(let j=0;j<map.height;j++)for(let i=0;i<map.width;i++){
+  const v=Math.min(1,intensity(.5-j/(map.height-1),limit*i/(map.width-1))/2.92);
+  const p=4*(j*map.width+i);
+  pixels.data.set([8+232*v**1.7,24+191*v,49+122*v,255],p);
+}
+mc.putImageData(pixels,0,0);
+let t=0, running=false, last=null, frame;
+function draw(){
+  const {width:w,height:h}=canvas.getBoundingClientRect(), s=devicePixelRatio||1;
+  const W=Math.round(w*s),H=Math.round(h*s);
+  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+  ctx.setTransform(s,0,0,s,0,0);ctx.clearRect(0,0,w,h);
+  const left=37,right=w-13,span=right-left, mx=u=>left+span*u/limit, px=x=>left+span*(x+.5);
+  function label(text,x,y,color='#bfcede'){ctx.fillStyle=color;ctx.font='12px system-ui';ctx.fillText(text,x,y);}
+  function line(x1,y1,x2,y2,color,dash=[]){
+    ctx.strokeStyle=color;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);
+  }
+  label('Click density along propagation',left,15);
+  ctx.drawImage(map,left,24,span,127);
+  for(const [u,color] of [[2/3,'#ffbe73'],[1,'#c5b4ff']])line(mx(u),24,mx(u),151,color,[4,4]);
+  line(mx(t),24,mx(t),151,'white');
+  label('0',left,169);label('8.19 λ',mx(2/3)-19,169,'#ffbe73');label('12.28 λ',Math.min(mx(1)-15,right-49),169,'#c5b4ff');
+  label('Lateral profile',left,193);label('Reference',right-128,193);label('Current',right-49,193,'#69e0db');
+  const pY=v=>282-80*v/3.05, qY=v=>343-v*25/Math.PI;
+  function curve(fn,y,color,dash=[],wrapped=false){
+    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.8;ctx.setLineDash(dash);
+    let prior;
+    for(let i=0;i<=320;i++){
+      const x=i/320-.5,v=fn(x);
+      if(i===0||(wrapped&&Math.abs(v-prior)>Math.PI))ctx.moveTo(px(x),y(v));else ctx.lineTo(px(x),y(v));
+      prior=v;
+    }
+    ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;
+  }
+  line(left,282,right,282,'#547087');curve(x=>intensity(x,0),pY,'#bfcede',[5,4]);curve(x=>intensity(x,t),pY,'#69e0db');
+  label('Phase change (−π to π)',left,312,'#f8b478');line(left,qY(0),right,qY(0),'#547087');
+  curve(x=>phaseChange(x,t),qY,'#f8b478',[],true);
+  label('−0.5',left,385);label('x/d',px(0)-8,385);label('+0.5',right-23,385);
+  const overlap=(1+Math.abs(Math.cos(2*Math.PI*t)))/2;
+  $('stats').textContent='Δz = '+(t*L).toFixed(2)+' λ · Best squared mode overlap = '+overlap.toFixed(3);
+  $('distance').value=t;
+}
+function loop(now){
+  if(!running)return;
+  if(last!==null)t=(t+Math.min(now-last,50)*.000145)%limit;
+  last=now;draw();frame=requestAnimationFrame(loop);
+}
+function halt(){running=false;last=null;cancelAnimationFrame(frame);$('play').textContent='Play';}
+$('play').onclick=()=>{if(running){halt();return;}running=true;$('play').textContent='Pause';frame=requestAnimationFrame(loop);};
+$('distance').oninput=e=>{const selected=Number(e.target.value);halt();t=selected;draw();};
+for(const button of document.querySelectorAll('[data-plane]'))button.onclick=()=>{
+  halt();t=({0:0,intensity:2/3,field:1})[button.dataset.plane];draw();
+};
+new ResizeObserver(draw).observe(canvas);draw();
+</script></html>
