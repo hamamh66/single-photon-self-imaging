@@ -1,5 +1,7 @@
 # Single-photon self-imaging
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24576210.svg)](https://doi.org/10.5281/zenodo.24576210)
+
 Code and data for the study *Exact Photon-Count Recurrence with Low Optical-Mode Overlap in Wavelength-Scale Periodic Fields*.
 
 A spatially resolving photon counter can record the same outcome distribution at two planes while the underlying optical mode has changed. The notebooks compare the complete outcome distribution of a single-photon position measurement, including the no-click outcome, with the squared state overlap maximized over lateral translations. They cover:
@@ -29,6 +31,10 @@ jupyter nbconvert --to notebook --execute notebooks/Self_Imaging_Recurrence_Scan
 The main notebook runs in about 35 minutes on two CPU cores and prints its progress. Figures and the summary are written to `outputs/Quantum_Field_Diffraction/`. On Google Colab they are written to `/content` and copied to `MyDrive/Outputs/Quantum_Field_Diffraction/`. The stored outputs were produced with Python 3.13, NumPy 2.5, SciPy 1.18 and Matplotlib 3.11.
 
 All lengths are in units of the wavelength. The screens are zero-thickness perfect conductors, invariant along the slits, under monochromatic normal incidence. The detector models are stated in the notebooks. No measured data are used.
+
+## Citation
+
+Version 1.0.0 is archived at https://doi.org/10.5281/zenodo.24576210.
 
 ## License
 
